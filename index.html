@@ -20190,7 +20190,7 @@ var __async = (__this, __arguments, generator) => {
 <div class="wrap">
   <header class="top">
     <h1>TGMSIDC &middot; Approval Letter Generator</h1>
-    <div class="ref">Short Shelf-Life Drugs &mdash; Excel to Word, in your browser</div>
+    <div class="ref"></div>
   </header>
 
   <div class="card">
@@ -20235,8 +20235,12 @@ function ordinal(n){
 function fmtDate(v){
   if(v==null||v==="") return "";
   if(v instanceof Date){
-    const d=String(v.getDate()).padStart(2,"0"),m=String(v.getMonth()+1).padStart(2,"0");
-    return `${d}-${m}-${v.getFullYear()}`;
+    // SheetJS date serials can land a few seconds off midnight; shift to local
+    // wall-clock then round to the nearest whole day so the calendar date is exact.
+    const local=new Date(v.getTime()-v.getTimezoneOffset()*60000);
+    const day=new Date(Math.round(local.getTime()/86400000)*86400000);
+    const d=String(day.getUTCDate()).padStart(2,"0"),m=String(day.getUTCMonth()+1).padStart(2,"0");
+    return `${d}-${m}-${day.getUTCFullYear()}`;
   }
   return String(v).replace(/\t/g," ").trim();
 }
@@ -20254,7 +20258,11 @@ function run(text,{size=22,bold=false,italics=false,font="Times New Roman"}={}){
   return new R({text,size,bold,italics,font});
 }
 function para(children,{align,spacing}={}){
-  return new P({children:Array.isArray(children)?children:[children],alignment:align,spacing});
+  return new P({
+    children:Array.isArray(children)?children:[children],
+    alignment:align,
+    spacing:spacing||{after:160,line:276,lineRule:"auto"}
+  });
 }
 const NB={style:BW.SINGLE,size:4,color:"000000"};
 const cellBorders={top:NB,bottom:NB,left:NB,right:NB};
@@ -20331,7 +20339,7 @@ function firmLetter(firm,rows){
   const s=n>1?"s":"";
   const poPhrase=n>1?`in the 1st to ${ordinal(n)} cited references`:"vide reference 1st cited";
   const out=[];
-  out.push(para([run(`Lr No: ${letterNo}`),run("\t\t\t\t\t\t"),run("Date:")]));
+  out.push(para([run(`Lr No: ${letterNo}`),run("\t\t\t\t\t\t"),run(`Date: ${noteDate}`)]));
   out.push(para(run("To")));
   out.push(para(run(`M/s. ${firm}`,{bold:true})));
   if(address) address.split("\n").forEach(l=>{if(l.trim())out.push(para(run(l.trim())));});
@@ -20356,7 +20364,9 @@ function firmLetter(firm,rows){
 /* ------------------------------------------------------------------ consolidated U.O. Note */
 function uoNote(firmMap){
   const out=[];
-  out.push(para([run("Lr No: "),run("\t\t\t\t\t\t"),run("Date:")]));
+  const firstRows=Object.values(firmMap)[0]||[];
+  const uoDate=firstRows.length?fmtDate(firstRows[0][15]):"";
+  out.push(para([run("Lr No: "),run("\t\t\t\t\t\t"),run(`Date: ${uoDate}`)]));
   out.push(para(run("U.O. NOTE",{size:24,bold:true}),{align:AL.CENTER}));
   const firms=Object.keys(firmMap);
   const firmsStr=firms.map(f=>`M/s. ${f}`).join(", ");
