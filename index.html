@@ -20195,16 +20195,14 @@ var __async = (__this, __arguments, generator) => {
 
   <div class="card">
     <h2>Upload the Excel sheet</h2>
-    <p class="sub">Choose the Short Shelf-Life Excel file. The tool builds one approval
-      letter per firm plus the consolidated U.O. Note, with the official header and logos
-      on every page. Everything runs in your browser &mdash; nothing is uploaded to any server.</p>
+    <p class="sub">Upload the excel sheet to get consolidated POs</p>
 
-    <label class="drop" id="drop">
+    <div class="drop" id="drop" role="button" tabindex="0">
       <div class="icon">&#128193;</div>
       <div class="t1">Drop your Excel file here</div>
       <div class="t2">or click to browse (.xlsx)</div>
-      <input type="file" id="file" accept=".xlsx,.xls">
-    </label>
+    </div>
+    <input type="file" id="file" accept=".xlsx,.xls" style="display:none">
     <div id="fname"></div>
 
     <button id="go" disabled>Generate Word document</button>
@@ -20428,11 +20426,36 @@ const fileInput=document.getElementById("file"),drop=document.getElementById("dr
       fname=document.getElementById("fname"),go=document.getElementById("go"),
       statusEl=document.getElementById("status"),summary=document.getElementById("summary");
 let chosen=null;
-function setFile(f){chosen=f;fname.textContent=f?("✓ "+f.name):"";go.disabled=!f;statusEl.textContent="";statusEl.className="status";summary.style.display="none";}
+function validExt(name){return /\.(xlsx|xls)$/i.test(name||"");}
+function setFile(f){
+  if(f&&!validExt(f.name)){
+    statusEl.className="status err";statusEl.textContent="Please choose an Excel file (.xlsx).";
+    chosen=null;fname.textContent="";go.disabled=true;summary.style.display="none";return;
+  }
+  chosen=f;fname.textContent=f?("✓ "+f.name):"";go.disabled=!f;
+  statusEl.textContent="";statusEl.className="status";summary.style.display="none";
+}
 fileInput.addEventListener("change",()=>setFile(fileInput.files[0]||null));
-["dragover","dragenter"].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.add("hover");}));
-["dragleave","drop"].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove("hover");}));
-drop.addEventListener("drop",e=>{const f=e.dataTransfer.files[0];if(f)setFile(f);});
+
+// Click / keyboard to open the file dialog
+drop.addEventListener("click",()=>fileInput.click());
+drop.addEventListener("keydown",e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();fileInput.click();}});
+
+// Stop the browser from opening the file if it's dropped anywhere on the page
+["dragover","drop"].forEach(ev=>window.addEventListener(ev,e=>e.preventDefault()));
+
+// Drag-and-drop onto the zone
+["dragenter","dragover"].forEach(ev=>drop.addEventListener(ev,e=>{
+  e.preventDefault();e.stopPropagation();drop.classList.add("hover");
+}));
+["dragleave","dragend"].forEach(ev=>drop.addEventListener(ev,e=>{
+  e.preventDefault();e.stopPropagation();drop.classList.remove("hover");
+}));
+drop.addEventListener("drop",e=>{
+  e.preventDefault();e.stopPropagation();drop.classList.remove("hover");
+  const f=e.dataTransfer&&e.dataTransfer.files&&e.dataTransfer.files[0];
+  if(f)setFile(f);
+});
 go.addEventListener("click",async()=>{
   if(!chosen)return;
   go.disabled=true;statusEl.className="status work";statusEl.textContent="Reading Excel and building the Word document…";
